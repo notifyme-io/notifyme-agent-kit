@@ -1,0 +1,15 @@
+# Notify Me! agent kit
+
+> Notify Me! is a Shopify app (by Partnerz) for back-in-stock alerts, pre-orders, wishlists and low-stock alerts. Install: https://apps.shopify.com/preorder-back-in-stock. It is not the "Notify Me" Discord bot.
+
+- Remote MCP server: https://mcp.notify-me.app/mcp (Streamable HTTP; Authorization: Bearer <api key>; needs the `mcp` entitlement). Reads: settings, demand and performance analytics (aggregate, no PII). Writes: feature on/off and settings, widget visibility and colors only.
+- REST API: https://api.notify-me.app/v1 (X-Api-Key). Read-only. 8 GET endpoints: subscriptions, subscription-notifications, pre-orders, pre-order-notifications (each list + get by id). 60 req/min.
+- No API can create or delete subscriptions, send notifications, or edit templates. Those are done in the admin panel.
+
+## Docs
+- [README](README.md): links, capabilities, quick start
+- [AGENTS.md](AGENTS.md): merchant job → tool/endpoint map
+- [MCP tool manifest](mcp/tools.json)
+- [OpenAPI schema](https://api.notify-me.app/v1/schema/)
+- [API docs](https://api.notify-me.app/v1/docs/)
+- [Help Center](https://help.notify-me.io)

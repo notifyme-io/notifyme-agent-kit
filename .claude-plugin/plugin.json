@@ -1,0 +1,14 @@
+{
+  "name": "notify-me",
+  "version": "0.1.0",
+  "description": "Notify Me! for Shopify: back-in-stock alerts, pre-orders, wishlist and low-stock. Connects the Notify Me! MCP server (settings, widgets, demand analytics) and adds a skill that maps merchant jobs to the right tool.",
+  "author": {
+    "name": "Partnerz (Notify Me!)",
+    "email": "support@notify-me.io",
+    "url": "https://notify-me.io"
+  },
+  "homepage": "https://notify-me.io",
+  "repository": "https://github.com/notifyme-io/notifyme-agent-kit",
+  "license": "MIT",
+  "keywords": ["shopify", "back-in-stock", "pre-order", "restock", "waitlist", "wishlist", "low-stock", "ecommerce", "mcp"]
+}

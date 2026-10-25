@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "notify-me": {
+      "type": "http",
+      "url": "https://mcp.notify-me.app/mcp",
+      "headers": {
+        "Authorization": "Bearer ${NOTIFYME_API_KEY}"
+      }
+    }
+  }
+}

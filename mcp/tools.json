@@ -1,0 +1,40 @@
+{
+  "_comment": "Static manifest of the Notify Me! MCP server tools, copied from the published API docs (info.description of https://api.notify-me.app/v1/schema/). The live tools/list requires an entitled key, so registries and crawlers cannot see it; this file is what they can index. Keep in sync with the server.",
+  "server": "https://mcp.notify-me.app/mcp",
+  "transport": "streamable-http",
+  "auth": "Authorization: Bearer <Notify Me! API key with the mcp entitlement>",
+  "capabilities": { "tools": true, "resources": false, "prompts": false },
+  "tools": [
+    { "name": "ping", "kind": "utility", "description": "Verify connectivity." },
+
+    { "name": "get_shop_overview", "kind": "read", "description": "Non-PII shop snapshot: plan, suspension status, currency, locale, trial / migration / customer-accounts state." },
+    { "name": "get_bis_settings", "kind": "read", "description": "Back in Stock settings: service active flag and product selection mode." },
+    { "name": "get_preorder_settings", "kind": "read", "description": "Pre-Order settings: service active, selling-plan group creation, mixed-cart alert." },
+    { "name": "get_wishlist_settings", "kind": "read", "description": "Wishlist settings: service active, guest mode, share state, enabled share channels." },
+    { "name": "get_low_stock_settings", "kind": "read", "description": "Low Stock settings: whether the service is active." },
+
+    { "name": "get_demand_summary", "kind": "read-analytics", "description": "Top unfilled Back in Stock demand by product / variant with request counts and estimated revenue.", "arguments": { "period": "7 | 30 | 90 | all", "limit": "top-N, max 50" } },
+    { "name": "get_bis_performance", "kind": "read-analytics", "description": "Aggregate BIS performance: requests, notifications sent, products in demand, recovered revenue, growth rates." },
+    { "name": "get_preorder_analytics", "kind": "read-analytics", "description": "Aggregate Pre-Order analytics: revenue, pre-ordered variant count, notifications sent, growth rates." },
+    { "name": "get_wishlist_insights", "kind": "read-analytics", "description": "Aggregate Wishlist insights: product count, list count, attributed order revenue, growth rates." },
+    { "name": "get_low_stock_status", "kind": "read-analytics", "description": "Low Stock notification status: alerts enabled, inventory threshold, send policy." },
+
+    { "name": "update_bis_settings", "kind": "write-settings", "editable_fields": ["is_service_active", "product_selection_mode"] },
+    { "name": "update_preorder_settings", "kind": "write-settings", "editable_fields": ["is_service_active", "show_mixed_cart_alert"] },
+    { "name": "update_wishlist_settings", "kind": "write-settings", "editable_fields": ["is_service_active", "is_guest_mode_enabled", "share_wishlist_enabled", "share_wishlist_channels"] },
+    { "name": "update_low_stock_settings", "kind": "write-settings", "editable_fields": ["is_service_active"] },
+
+    { "name": "get_bis_widget_appearance", "kind": "read-widget", "description": "Back in Stock widget visibility and colors (product / collection / home)." },
+    { "name": "set_bis_widget_display", "kind": "write-widget" },
+    { "name": "update_bis_widget_colors", "kind": "write-widget" },
+    { "name": "get_wishlist_widget_appearance", "kind": "read-widget", "description": "Wishlist widget visibility and colors (product / collection / landing / access button)." },
+    { "name": "set_wishlist_widget_visibility", "kind": "write-widget" },
+    { "name": "update_wishlist_widget_colors", "kind": "write-widget" },
+    { "name": "get_low_stock_widget_appearance", "kind": "read-widget", "description": "Low Stock widget visibility and colors." },
+    { "name": "set_low_stock_widget_visibility", "kind": "write-widget" },
+    { "name": "update_low_stock_widget_colors", "kind": "write-widget" },
+    { "name": "get_preorder_widget_appearance", "kind": "read-widget", "description": "Pre-Order widget visibility and colors (product / collection / landing / cart)." },
+    { "name": "set_preorder_widget_visibility", "kind": "write-widget" },
+    { "name": "update_preorder_widget_colors", "kind": "write-widget" }
+  ]
+}

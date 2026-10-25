@@ -1,0 +1,50 @@
+{
+  "name": "@notify-me/cli",
+  "version": "0.1.0",
+  "description": "Notify Me! for Shopify (back in stock, pre-order, wishlist, low stock): read-only Public API CLI and MCP client config for AI agents.",
+  "keywords": [
+    "shopify",
+    "back-in-stock",
+    "restock-alerts",
+    "pre-order",
+    "preorder",
+    "waitlist",
+    "wishlist",
+    "low-stock",
+    "notify-me",
+    "mcp",
+    "model-context-protocol",
+    "ai-agent",
+    "claude-code",
+    "cursor",
+    "codex"
+  ],
+  "homepage": "https://notify-me.io",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/notifyme-io/notifyme-agent-kit.git"
+  },
+  "bugs": {
+    "email": "support@notify-me.io"
+  },
+  "license": "MIT",
+  "author": "Partnerz (Notify Me!)",
+  "bin": {
+    "notifyme": "bin/notifyme.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "README.md",
+    "AGENTS.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "check-spec": "node scripts/check-spec.js",
+    "smoke": "node bin/notifyme.js --help && node bin/notifyme.js endpoints --raw"
+  },
+  "private": true
+}

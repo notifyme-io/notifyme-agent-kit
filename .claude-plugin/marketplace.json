@@ -1,0 +1,18 @@
+{
+  "name": "notify-me",
+  "owner": {
+    "name": "Partnerz (Notify Me!)",
+    "email": "support@notify-me.io"
+  },
+  "metadata": {
+    "description": "Official Notify Me! (Shopify back-in-stock & pre-order app) plugins for Claude Code."
+  },
+  "plugins": [
+    {
+      "name": "notify-me",
+      "source": "./",
+      "description": "Shopify back-in-stock, pre-order, wishlist and low-stock alerts: MCP server + merchant-job skill.",
+      "category": "ecommerce"
+    }
+  ]
+}

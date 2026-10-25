@@ -1,0 +1,2544 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "Notify Me! Public API",
+        "version": "1.0.0",
+        "description": "\nWelcome to the **Notify Me! Public API**. This API allows you to programmatically manage subscriptions, orders, and pre-orders for your Shopify store.\n\n## Authentication\n\nAll API requests require authentication using an API key. Include your API key in the request header:\n\n```\nX-Api-Key: your_api_key_here\n```\n\nYou can generate an API key from your Notify Me! Admin Panel.\n\n## Rate Limits\n\nTo ensure fair usage and system stability, the API enforces rate limits:\n\n| Endpoint Type | Limit |\n|--------------|-------|\n| Standard endpoints | 60 requests/minute |\n\nWhen you exceed the rate limit, you'll receive a `429 Too Many Requests` response.\n\n## Pagination\n\nList endpoints return paginated results using `limit` and `offset` parameters:\n\n| Parameter | Description | Default | Maximum |\n|-----------|-------------|---------|---------|\n| `limit` | Number of results to return | 15 | 100 |\n| `offset` | Starting position in the result set | 0 | - |\n\n**Example:** `/v1/subscriptions/?limit=25&offset=50`\n\nPaginated responses include:\n\n```json\n{\n  \"count\": 150,\n  \"next\": \"https://api.notify-me.app/v1/subscriptions/?limit=25&offset=75\",\n  \"previous\": \"https://api.notify-me.app/v1/subscriptions/?limit=25&offset=25\",\n  \"results\": [...]\n}\n```\n\n## Response Format\n\nAll responses are returned in JSON format. Successful responses include the requested data, while error responses include an `error` field with details.\n\n## MCP Server\n\nIn addition to this REST API, Notify Me! offers a remote **MCP (Model Context Protocol) server** for LLM clients such as Claude and Cursor. It lets you drive Notify Me! from your assistant using natural language instead of REST calls.\n\n- **Endpoint:** `https://mcp.notify-me.app/mcp` (Streamable HTTP transport)\n- **Authentication:** the same `ShopAPIKey` credential used above, sent as a bearer token:\n\n  ```\n  Authorization: Bearer your_api_key_here\n  ```\n\n- **Entitlement:** access requires the `mcp` entitlement (separate from the Public API entitlement).\n- **Shop resolution:** the shop is resolved from the API key — it is never a tool argument, so a key can only act on its own shop.\n\nThe server exposes the following **tools**. (MCP *resources* and *prompts* are not offered in v1 — the server is tools-only.) Reads are aggregate and PII-safe (no customer or merchant personal data); writes inherit the same permissions, validation, and side-effects as the admin panel and return the `old → new` diff plus the new state.\n\n**Read settings**\n\n| Tool | Description |\n|------|-------------|\n| `get_shop_overview` | Non-PII shop snapshot: plan, suspension status, currency, locale, trial / migration / customer-accounts state. |\n| `get_bis_settings` | Back in Stock settings: service active flag and product selection mode. |\n| `get_preorder_settings` | Pre-Order settings: service active, selling-plan group creation, mixed-cart alert. |\n| `get_wishlist_settings` | Wishlist settings: service active, guest mode, share state, enabled share channels. |\n| `get_low_stock_settings` | Low Stock settings: whether the service is active. |\n\n**Read analytics** (aggregate)\n\n| Tool | Description |\n|------|-------------|\n| `get_demand_summary` | Top unfilled Back in Stock demand by product / variant with request counts and estimated revenue. Accepts `period` (`7` / `30` / `90` / `all`) and `limit` (top-N, max 50). |\n| `get_bis_performance` | Aggregate BIS performance: requests, notifications sent, products in demand, recovered revenue, growth rates. |\n| `get_preorder_analytics` | Aggregate Pre-Order analytics: revenue, pre-ordered variant count, notifications sent, growth rates. |\n| `get_wishlist_insights` | Aggregate Wishlist insights: product count, list count, attributed order revenue, growth rates. |\n| `get_low_stock_status` | Low Stock notification status: alerts enabled, inventory threshold, send policy. |\n\n**Change settings** (provide only the fields you want to change)\n\n| Tool | Editable fields |\n|------|-----------------|\n| `update_bis_settings` | `is_service_active`, `product_selection_mode` |\n| `update_preorder_settings` | `is_service_active`, `show_mixed_cart_alert` |\n| `update_wishlist_settings` | `is_service_active`, `is_guest_mode_enabled`, `share_wishlist_enabled`, `share_wishlist_channels` |\n| `update_low_stock_settings` | `is_service_active` |\n\n**Customize widget appearance** — read a widget's current visibility and colors, toggle its visibility on a storefront page, and change its colors. Color tools preserve untouched style keys; provide only what you want to change. The read tools return values keyed the same way the change tools accept them, so you can read a widget's appearance and pass it straight back.\n\n| Read | Change |\n|------|--------|\n| `get_bis_widget_appearance` | `set_bis_widget_display` / `update_bis_widget_colors` — Back in Stock (product / collection / home) |\n| `get_wishlist_widget_appearance` | `set_wishlist_widget_visibility` / `update_wishlist_widget_colors` — Wishlist (product / collection / landing / access button) |\n| `get_low_stock_widget_appearance` | `set_low_stock_widget_visibility` / `update_low_stock_widget_colors` — Low Stock |\n| `get_preorder_widget_appearance` | `set_preorder_widget_visibility` / `update_preorder_widget_colors` — Pre-Order (product / collection / landing / cart) |\n\nA `ping` tool is also available to verify connectivity. Because MCP is not a REST protocol, these tools do not appear in the OpenAPI schema below. See the [Help Center](https://help.notify-me.io) for setup instructions.\n\n## Need Help?\n\n- [Help Center](https://help.notify-me.io) - Detailed guides and tutorials\n- [Contact Support](mailto:support@notify-me.io) - Get help from our team\n"
+    },
+    "paths": {
+        "/v1/pre-order-notifications/": {
+            "get": {
+                "operationId": "pre_order_notifications_list",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "bundle",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "description": "Filter by bundle type (comma-separated for multiple values)",
+                        "explode": false,
+                        "style": "form"
+                    },
+                    {
+                        "in": "query",
+                        "name": "email",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by email (case-insensitive)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "email_status",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "description": "Filter by email status (comma-separated for multiple values)",
+                        "explode": false,
+                        "style": "form"
+                    },
+                    {
+                        "in": "query",
+                        "name": "phone_number",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by phone number (case-insensitive)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "pre_order_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Filter by pre-order ID"
+                    },
+                    {
+                        "in": "query",
+                        "name": "sent_at_gte",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "description": "Notifications sent after this date (ISO 8601)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "sent_at_lte",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "description": "Notifications sent before this date (ISO 8601)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "sms_status",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "description": "Filter by SMS status (comma-separated for multiple values)",
+                        "explode": false,
+                        "style": "form"
+                    },
+                    {
+                        "in": "query",
+                        "name": "ordering",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "-id",
+                                    "-sent_at",
+                                    "id",
+                                    "sent_at"
+                                ]
+                            }
+                        },
+                        "description": "Order by field. Prefix with '-' for descending\n\n* `sent_at` - Sent at\n* `-sent_at` - Sent at (descending)\n* `id` - Id\n* `-id` - Id (descending)",
+                        "explode": false,
+                        "style": "form"
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return. Default: 15, Max: 100",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "description": "Starting position of the result set.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 0,
+                            "minimum": 0
+                        }
+                    }
+                ],
+                "tags": [
+                    "Pre Order Notifications"
+                ],
+                "security": [
+                    {
+                        "apiKeyAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedPreOrderSentNotificationList"
+                                },
+                                "examples": {
+                                    "Pre-OrderSentNotificationResponse": {
+                                        "value": {
+                                            "count": 123,
+                                            "next": "http://api.example.org/accounts/?offset=400&limit=100",
+                                            "previous": "http://api.example.org/accounts/?offset=200&limit=100",
+                                            "results": [
+                                                {
+                                                    "id": 12345,
+                                                    "bundle": "PRE_ORDER",
+                                                    "sent_at": "2024-01-15T08:00:00Z",
+                                                    "pre_order_ids": [
+                                                        100,
+                                                        101,
+                                                        102
+                                                    ],
+                                                    "email": "customer@example.com",
+                                                    "phone_number": "+15551234567",
+                                                    "email_stat": {
+                                                        "status": "DELIVERED"
+                                                    },
+                                                    "sms_stat": null,
+                                                    "is_redacted": false
+                                                }
+                                            ]
+                                        },
+                                        "summary": "Pre-Order Sent Notification Response"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "description": "Authentication failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "description": "Error message"
+                                        }
+                                    }
+                                },
+                                "examples": {
+                                    "missing_api_key": {
+                                        "summary": "Missing API key",
+                                        "value": {
+                                            "detail": "API key required. Provide via X-Api-Key header."
+                                        }
+                                    },
+                                    "invalid_api_key": {
+                                        "summary": "Invalid API key",
+                                        "value": {
+                                            "detail": "Invalid or expired API key."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "You do not have permission to perform this action."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "Request was throttled. Expected available in 60 seconds."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Pre Order Sent Notifications List",
+                "description": "Retrieve a paginated list of pre order sent notifications for your shop.",
+                "x-codeSamples": [
+                    {
+                        "lang": "curl",
+                        "label": "cURL",
+                        "source": "curl -X GET \"https://api.notify-me.app/v1/pre-order-notifications/\" \\\n  -H \"X-Api-Key: YOUR_API_KEY\""
+                    },
+                    {
+                        "lang": "python",
+                        "label": "Python",
+                        "source": "import requests\n\nresponse = requests.get(\n    \"https://api.notify-me.app/v1/pre-order-notifications/\",\n    headers={\"X-Api-Key\": \"YOUR_API_KEY\"}\n)\nprint(response.json())"
+                    },
+                    {
+                        "lang": "javascript",
+                        "label": "JavaScript",
+                        "source": "fetch(\"https://api.notify-me.app/v1/pre-order-notifications/\", {\n    method: \"GET\",\n    headers: {\n        \"X-Api-Key\": \"YOUR_API_KEY\"\n    }\n})\n.then(response => response.json())\n.then(data => console.log(data));"
+                    },
+                    {
+                        "lang": "php",
+                        "label": "PHP",
+                        "source": "<?php\n$ch = curl_init(\"https://api.notify-me.app/v1/pre-order-notifications/\");\n\ncurl_setopt_array($ch, [\n    CURLOPT_RETURNTRANSFER => true,\n    CURLOPT_CUSTOMREQUEST => \"GET\",\n    CURLOPT_HTTPHEADER => [\n        \"X-Api-Key: YOUR_API_KEY\"\n    ]\n]);\n\n$response = curl_exec($ch);\ncurl_close($ch);\n\nprint_r(json_decode($response, true));"
+                    },
+                    {
+                        "lang": "ruby",
+                        "label": "Ruby",
+                        "source": "require \"net/http\"\nrequire \"json\"\n\nuri = URI(\"https://api.notify-me.app/v1/pre-order-notifications/\")\nhttp = Net::HTTP.new(uri.host, uri.port)\nhttp.use_ssl = uri.scheme == \"https\"\n\nrequest = Net::HTTP::Get.new(uri)\nrequest[\"X-Api-Key\"] = \"YOUR_API_KEY\"\n\nresponse = http.request(request)\nputs JSON.parse(response.body)"
+                    },
+                    {
+                        "lang": "go",
+                        "label": "Go",
+                        "source": "package main\n\nimport (\n    \"encoding/json\"\n    \"fmt\"\n    \"net/http\"\n)\n\nfunc main() {\n    req, _ := http.NewRequest(\"GET\", \"https://api.notify-me.app/v1/pre-order-notifications/\", nil)\n    req.Header.Set(\"X-Api-Key\", \"YOUR_API_KEY\")\n\n    client := &http.Client{}\n    resp, _ := client.Do(req)\n    defer resp.Body.Close()\n\n    var result map[string]interface{}\n    json.NewDecoder(resp.Body).Decode(&result)\n    fmt.Println(result)\n}"
+                    },
+                    {
+                        "lang": "node",
+                        "label": "Node.js",
+                        "source": "const axios = require(\"axios\");\n\naxios({\n    method: \"get\",\n    url: \"https://api.notify-me.app/v1/pre-order-notifications/\",\n    headers: {\n        \"X-Api-Key\": \"YOUR_API_KEY\"\n    }\n})\n.then(response => console.log(response.data))\n.catch(error => console.error(error));"
+                    }
+                ]
+            }
+        },
+        "/v1/pre-order-notifications/{id}/": {
+            "get": {
+                "operationId": "pre_order_notifications_retrieve",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this pre order sent notification.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Pre Order Notifications"
+                ],
+                "security": [
+                    {
+                        "apiKeyAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PreOrderSentNotification"
+                                },
+                                "examples": {
+                                    "Pre-OrderSentNotificationResponse": {
+                                        "value": {
+                                            "id": 12345,
+                                            "bundle": "PRE_ORDER",
+                                            "sent_at": "2024-01-15T08:00:00Z",
+                                            "pre_order_ids": [
+                                                100,
+                                                101,
+                                                102
+                                            ],
+                                            "email": "customer@example.com",
+                                            "phone_number": "+15551234567",
+                                            "email_stat": {
+                                                "status": "DELIVERED"
+                                            },
+                                            "sms_stat": null,
+                                            "is_redacted": false
+                                        },
+                                        "summary": "Pre-Order Sent Notification Response"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "description": "Authentication failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "description": "Error message"
+                                        }
+                                    }
+                                },
+                                "examples": {
+                                    "missing_api_key": {
+                                        "summary": "Missing API key",
+                                        "value": {
+                                            "detail": "API key required. Provide via X-Api-Key header."
+                                        }
+                                    },
+                                    "invalid_api_key": {
+                                        "summary": "Invalid API key",
+                                        "value": {
+                                            "detail": "Invalid or expired API key."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "You do not have permission to perform this action."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "Request was throttled. Expected available in 60 seconds."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Object not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "Not found."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Get Pre Order Sent Notification",
+                "description": "Retrieve details of a specific pre order sent notification by ID.",
+                "x-codeSamples": [
+                    {
+                        "lang": "curl",
+                        "label": "cURL",
+                        "source": "curl -X GET \"https://api.notify-me.app/v1/pre-order-notifications/{id}/\" \\\n  -H \"X-Api-Key: YOUR_API_KEY\""
+                    },
+                    {
+                        "lang": "python",
+                        "label": "Python",
+                        "source": "import requests\n\nresponse = requests.get(\n    \"https://api.notify-me.app/v1/pre-order-notifications/{id}/\",\n    headers={\"X-Api-Key\": \"YOUR_API_KEY\"}\n)\nprint(response.json())"
+                    },
+                    {
+                        "lang": "javascript",
+                        "label": "JavaScript",
+                        "source": "fetch(\"https://api.notify-me.app/v1/pre-order-notifications/{id}/\", {\n    method: \"GET\",\n    headers: {\n        \"X-Api-Key\": \"YOUR_API_KEY\"\n    }\n})\n.then(response => response.json())\n.then(data => console.log(data));"
+                    },
+                    {
+                        "lang": "php",
+                        "label": "PHP",
+                        "source": "<?php\n$ch = curl_init(\"https://api.notify-me.app/v1/pre-order-notifications/{id}/\");\n\ncurl_setopt_array($ch, [\n    CURLOPT_RETURNTRANSFER => true,\n    CURLOPT_CUSTOMREQUEST => \"GET\",\n    CURLOPT_HTTPHEADER => [\n        \"X-Api-Key: YOUR_API_KEY\"\n    ]\n]);\n\n$response = curl_exec($ch);\ncurl_close($ch);\n\nprint_r(json_decode($response, true));"
+                    },
+                    {
+                        "lang": "ruby",
+                        "label": "Ruby",
+                        "source": "require \"net/http\"\nrequire \"json\"\n\nuri = URI(\"https://api.notify-me.app/v1/pre-order-notifications/{id}/\")\nhttp = Net::HTTP.new(uri.host, uri.port)\nhttp.use_ssl = uri.scheme == \"https\"\n\nrequest = Net::HTTP::Get.new(uri)\nrequest[\"X-Api-Key\"] = \"YOUR_API_KEY\"\n\nresponse = http.request(request)\nputs JSON.parse(response.body)"
+                    },
+                    {
+                        "lang": "go",
+                        "label": "Go",
+                        "source": "package main\n\nimport (\n    \"encoding/json\"\n    \"fmt\"\n    \"net/http\"\n)\n\nfunc main() {\n    req, _ := http.NewRequest(\"GET\", \"https://api.notify-me.app/v1/pre-order-notifications/{id}/\", nil)\n    req.Header.Set(\"X-Api-Key\", \"YOUR_API_KEY\")\n\n    client := &http.Client{}\n    resp, _ := client.Do(req)\n    defer resp.Body.Close()\n\n    var result map[string]interface{}\n    json.NewDecoder(resp.Body).Decode(&result)\n    fmt.Println(result)\n}"
+                    },
+                    {
+                        "lang": "node",
+                        "label": "Node.js",
+                        "source": "const axios = require(\"axios\");\n\naxios({\n    method: \"get\",\n    url: \"https://api.notify-me.app/v1/pre-order-notifications/{id}/\",\n    headers: {\n        \"X-Api-Key\": \"YOUR_API_KEY\"\n    }\n})\n.then(response => console.log(response.data))\n.catch(error => console.error(error));"
+                    }
+                ]
+            }
+        },
+        "/v1/pre-orders/": {
+            "get": {
+                "operationId": "pre_orders_list",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "cancelled_at_isnull",
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "description": "Filter by cancellation status (true=not cancelled, false=cancelled)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "created_at_gte",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "description": "Pre-orders created after this date (ISO 8601)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "created_at_lte",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "description": "Pre-orders created before this date (ISO 8601)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "email",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by customer email (case-insensitive)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "financial_status",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "description": "Filter by financial status (comma-separated for multiple values)",
+                        "explode": false,
+                        "style": "form"
+                    },
+                    {
+                        "in": "query",
+                        "name": "fulfillment_status",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "description": "Filter by fulfillment status (comma-separated for multiple values)",
+                        "explode": false,
+                        "style": "form"
+                    },
+                    {
+                        "in": "query",
+                        "name": "product_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Filter by Shopify product ID"
+                    },
+                    {
+                        "in": "query",
+                        "name": "selling_plan_settings_name",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by selling plan settings name (case-insensitive)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "shopify_order_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Filter by Shopify order ID"
+                    },
+                    {
+                        "in": "query",
+                        "name": "sku",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by SKU (case-insensitive)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "variant_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Filter by Shopify variant ID"
+                    },
+                    {
+                        "in": "query",
+                        "name": "ordering",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "-created_at",
+                                    "-id",
+                                    "-total_price",
+                                    "created_at",
+                                    "id",
+                                    "total_price"
+                                ]
+                            }
+                        },
+                        "description": "Order by field. Prefix with '-' for descending\n\n* `created_at` - Created at\n* `-created_at` - Created at (descending)\n* `id` - Id\n* `-id` - Id (descending)\n* `total_price` - Total price\n* `-total_price` - Total price (descending)",
+                        "explode": false,
+                        "style": "form"
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return. Default: 15, Max: 100",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "description": "Starting position of the result set.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 0,
+                            "minimum": 0
+                        }
+                    }
+                ],
+                "tags": [
+                    "Pre Orders"
+                ],
+                "security": [
+                    {
+                        "apiKeyAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedShopPreOrderList"
+                                },
+                                "examples": {
+                                    "Pre-OrderResponse": {
+                                        "value": {
+                                            "count": 123,
+                                            "next": "http://api.example.org/accounts/?offset=400&limit=100",
+                                            "previous": "http://api.example.org/accounts/?offset=200&limit=100",
+                                            "results": [
+                                                {
+                                                    "id": 12345,
+                                                    "shopify_order_id": 9876543210,
+                                                    "email": "customer@example.com",
+                                                    "phone_number": "+15551234567",
+                                                    "created_at": "2024-01-15T08:00:00Z",
+                                                    "total_price": 99.99,
+                                                    "product_price": 49.99,
+                                                    "product_ordered_quantity": 2,
+                                                    "financial_status": "PAID",
+                                                    "fulfillment_status": "UNFULFILLED",
+                                                    "locale": "en",
+                                                    "cancelled_at": null,
+                                                    "cancellation_reason": null,
+                                                    "product_id": 98765,
+                                                    "variant_id": 11111,
+                                                    "variant_sku": "SKU-001",
+                                                    "selling_plan_settings_name": "Summer Pre-Order",
+                                                    "is_redacted": false
+                                                }
+                                            ]
+                                        },
+                                        "summary": "Pre-Order Response"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "description": "Authentication failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "description": "Error message"
+                                        }
+                                    }
+                                },
+                                "examples": {
+                                    "missing_api_key": {
+                                        "summary": "Missing API key",
+                                        "value": {
+                                            "detail": "API key required. Provide via X-Api-Key header."
+                                        }
+                                    },
+                                    "invalid_api_key": {
+                                        "summary": "Invalid API key",
+                                        "value": {
+                                            "detail": "Invalid or expired API key."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "You do not have permission to perform this action."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "Request was throttled. Expected available in 60 seconds."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Shop Pre Orders List",
+                "description": "Retrieve a paginated list of shop pre orders for your shop.",
+                "x-codeSamples": [
+                    {
+                        "lang": "curl",
+                        "label": "cURL",
+                        "source": "curl -X GET \"https://api.notify-me.app/v1/pre-orders/\" \\\n  -H \"X-Api-Key: YOUR_API_KEY\""
+                    },
+                    {
+                        "lang": "python",
+                        "label": "Python",
+                        "source": "import requests\n\nresponse = requests.get(\n    \"https://api.notify-me.app/v1/pre-orders/\",\n    headers={\"X-Api-Key\": \"YOUR_API_KEY\"}\n)\nprint(response.json())"
+                    },
+                    {
+                        "lang": "javascript",
+                        "label": "JavaScript",
+                        "source": "fetch(\"https://api.notify-me.app/v1/pre-orders/\", {\n    method: \"GET\",\n    headers: {\n        \"X-Api-Key\": \"YOUR_API_KEY\"\n    }\n})\n.then(response => response.json())\n.then(data => console.log(data));"
+                    },
+                    {
+                        "lang": "php",
+                        "label": "PHP",
+                        "source": "<?php\n$ch = curl_init(\"https://api.notify-me.app/v1/pre-orders/\");\n\ncurl_setopt_array($ch, [\n    CURLOPT_RETURNTRANSFER => true,\n    CURLOPT_CUSTOMREQUEST => \"GET\",\n    CURLOPT_HTTPHEADER => [\n        \"X-Api-Key: YOUR_API_KEY\"\n    ]\n]);\n\n$response = curl_exec($ch);\ncurl_close($ch);\n\nprint_r(json_decode($response, true));"
+                    },
+                    {
+                        "lang": "ruby",
+                        "label": "Ruby",
+                        "source": "require \"net/http\"\nrequire \"json\"\n\nuri = URI(\"https://api.notify-me.app/v1/pre-orders/\")\nhttp = Net::HTTP.new(uri.host, uri.port)\nhttp.use_ssl = uri.scheme == \"https\"\n\nrequest = Net::HTTP::Get.new(uri)\nrequest[\"X-Api-Key\"] = \"YOUR_API_KEY\"\n\nresponse = http.request(request)\nputs JSON.parse(response.body)"
+                    },
+                    {
+                        "lang": "go",
+                        "label": "Go",
+                        "source": "package main\n\nimport (\n    \"encoding/json\"\n    \"fmt\"\n    \"net/http\"\n)\n\nfunc main() {\n    req, _ := http.NewRequest(\"GET\", \"https://api.notify-me.app/v1/pre-orders/\", nil)\n    req.Header.Set(\"X-Api-Key\", \"YOUR_API_KEY\")\n\n    client := &http.Client{}\n    resp, _ := client.Do(req)\n    defer resp.Body.Close()\n\n    var result map[string]interface{}\n    json.NewDecoder(resp.Body).Decode(&result)\n    fmt.Println(result)\n}"
+                    },
+                    {
+                        "lang": "node",
+                        "label": "Node.js",
+                        "source": "const axios = require(\"axios\");\n\naxios({\n    method: \"get\",\n    url: \"https://api.notify-me.app/v1/pre-orders/\",\n    headers: {\n        \"X-Api-Key\": \"YOUR_API_KEY\"\n    }\n})\n.then(response => console.log(response.data))\n.catch(error => console.error(error));"
+                    }
+                ]
+            }
+        },
+        "/v1/pre-orders/{id}/": {
+            "get": {
+                "operationId": "pre_orders_retrieve",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this shop pre order.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Pre Orders"
+                ],
+                "security": [
+                    {
+                        "apiKeyAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ShopPreOrder"
+                                },
+                                "examples": {
+                                    "Pre-OrderResponse": {
+                                        "value": {
+                                            "id": 12345,
+                                            "shopify_order_id": 9876543210,
+                                            "email": "customer@example.com",
+                                            "phone_number": "+15551234567",
+                                            "created_at": "2024-01-15T08:00:00Z",
+                                            "total_price": 99.99,
+                                            "product_price": 49.99,
+                                            "product_ordered_quantity": 2,
+                                            "financial_status": "PAID",
+                                            "fulfillment_status": "UNFULFILLED",
+                                            "locale": "en",
+                                            "cancelled_at": null,
+                                            "cancellation_reason": null,
+                                            "product_id": 98765,
+                                            "variant_id": 11111,
+                                            "variant_sku": "SKU-001",
+                                            "selling_plan_settings_name": "Summer Pre-Order",
+                                            "is_redacted": false
+                                        },
+                                        "summary": "Pre-Order Response"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "description": "Authentication failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "description": "Error message"
+                                        }
+                                    }
+                                },
+                                "examples": {
+                                    "missing_api_key": {
+                                        "summary": "Missing API key",
+                                        "value": {
+                                            "detail": "API key required. Provide via X-Api-Key header."
+                                        }
+                                    },
+                                    "invalid_api_key": {
+                                        "summary": "Invalid API key",
+                                        "value": {
+                                            "detail": "Invalid or expired API key."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "You do not have permission to perform this action."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "Request was throttled. Expected available in 60 seconds."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Object not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "Not found."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Get Shop Pre Order",
+                "description": "Retrieve details of a specific shop pre order by ID.",
+                "x-codeSamples": [
+                    {
+                        "lang": "curl",
+                        "label": "cURL",
+                        "source": "curl -X GET \"https://api.notify-me.app/v1/pre-orders/{id}/\" \\\n  -H \"X-Api-Key: YOUR_API_KEY\""
+                    },
+                    {
+                        "lang": "python",
+                        "label": "Python",
+                        "source": "import requests\n\nresponse = requests.get(\n    \"https://api.notify-me.app/v1/pre-orders/{id}/\",\n    headers={\"X-Api-Key\": \"YOUR_API_KEY\"}\n)\nprint(response.json())"
+                    },
+                    {
+                        "lang": "javascript",
+                        "label": "JavaScript",
+                        "source": "fetch(\"https://api.notify-me.app/v1/pre-orders/{id}/\", {\n    method: \"GET\",\n    headers: {\n        \"X-Api-Key\": \"YOUR_API_KEY\"\n    }\n})\n.then(response => response.json())\n.then(data => console.log(data));"
+                    },
+                    {
+                        "lang": "php",
+                        "label": "PHP",
+                        "source": "<?php\n$ch = curl_init(\"https://api.notify-me.app/v1/pre-orders/{id}/\");\n\ncurl_setopt_array($ch, [\n    CURLOPT_RETURNTRANSFER => true,\n    CURLOPT_CUSTOMREQUEST => \"GET\",\n    CURLOPT_HTTPHEADER => [\n        \"X-Api-Key: YOUR_API_KEY\"\n    ]\n]);\n\n$response = curl_exec($ch);\ncurl_close($ch);\n\nprint_r(json_decode($response, true));"
+                    },
+                    {
+                        "lang": "ruby",
+                        "label": "Ruby",
+                        "source": "require \"net/http\"\nrequire \"json\"\n\nuri = URI(\"https://api.notify-me.app/v1/pre-orders/{id}/\")\nhttp = Net::HTTP.new(uri.host, uri.port)\nhttp.use_ssl = uri.scheme == \"https\"\n\nrequest = Net::HTTP::Get.new(uri)\nrequest[\"X-Api-Key\"] = \"YOUR_API_KEY\"\n\nresponse = http.request(request)\nputs JSON.parse(response.body)"
+                    },
+                    {
+                        "lang": "go",
+                        "label": "Go",
+                        "source": "package main\n\nimport (\n    \"encoding/json\"\n    \"fmt\"\n    \"net/http\"\n)\n\nfunc main() {\n    req, _ := http.NewRequest(\"GET\", \"https://api.notify-me.app/v1/pre-orders/{id}/\", nil)\n    req.Header.Set(\"X-Api-Key\", \"YOUR_API_KEY\")\n\n    client := &http.Client{}\n    resp, _ := client.Do(req)\n    defer resp.Body.Close()\n\n    var result map[string]interface{}\n    json.NewDecoder(resp.Body).Decode(&result)\n    fmt.Println(result)\n}"
+                    },
+                    {
+                        "lang": "node",
+                        "label": "Node.js",
+                        "source": "const axios = require(\"axios\");\n\naxios({\n    method: \"get\",\n    url: \"https://api.notify-me.app/v1/pre-orders/{id}/\",\n    headers: {\n        \"X-Api-Key\": \"YOUR_API_KEY\"\n    }\n})\n.then(response => console.log(response.data))\n.catch(error => console.error(error));"
+                    }
+                ]
+            }
+        },
+        "/v1/subscription-notifications/": {
+            "get": {
+                "operationId": "subscription_notifications_list",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "bundle",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "description": "Filter by bundle type (comma-separated for multiple values)",
+                        "explode": false,
+                        "style": "form"
+                    },
+                    {
+                        "in": "query",
+                        "name": "email",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by email (case-insensitive)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "email_status",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "description": "Filter by email status (comma-separated for multiple values)",
+                        "explode": false,
+                        "style": "form"
+                    },
+                    {
+                        "in": "query",
+                        "name": "phone_number",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by phone number (case-insensitive)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "product_id",
+                        "schema": {
+                            "type": "number"
+                        },
+                        "description": "Filter by product ID"
+                    },
+                    {
+                        "in": "query",
+                        "name": "push_status",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "description": "Filter by push notification status (comma-separated for multiple values)",
+                        "explode": false,
+                        "style": "form"
+                    },
+                    {
+                        "in": "query",
+                        "name": "sent_at_gte",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "description": "Notifications sent after this date (ISO 8601)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "sent_at_lte",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "description": "Notifications sent before this date (ISO 8601)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "sku",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by SKU (case-insensitive)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "sms_status",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "description": "Filter by SMS status (comma-separated for multiple values)",
+                        "explode": false,
+                        "style": "form"
+                    },
+                    {
+                        "in": "query",
+                        "name": "subscription_id",
+                        "schema": {
+                            "type": "number"
+                        },
+                        "description": "Filter by subscription ID"
+                    },
+                    {
+                        "in": "query",
+                        "name": "variant_id",
+                        "schema": {
+                            "type": "number"
+                        },
+                        "description": "Filter by variant ID"
+                    },
+                    {
+                        "in": "query",
+                        "name": "whatsapp_number",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by WhatsApp number (case-insensitive)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "whatsapp_status",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "description": "Filter by WhatsApp status (comma-separated for multiple values)",
+                        "explode": false,
+                        "style": "form"
+                    },
+                    {
+                        "in": "query",
+                        "name": "ordering",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "-id",
+                                    "-sent_at",
+                                    "id",
+                                    "sent_at"
+                                ]
+                            }
+                        },
+                        "description": "Order by field. Prefix with '-' for descending\n\n* `sent_at` - Sent at\n* `-sent_at` - Sent at (descending)\n* `id` - Id\n* `-id` - Id (descending)",
+                        "explode": false,
+                        "style": "form"
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return. Default: 15, Max: 100",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "description": "Starting position of the result set.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 0,
+                            "minimum": 0
+                        }
+                    }
+                ],
+                "tags": [
+                    "Subscription Notifications"
+                ],
+                "security": [
+                    {
+                        "apiKeyAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedSubscriptionSentNotificationList"
+                                },
+                                "examples": {
+                                    "SentNotificationResponse": {
+                                        "value": {
+                                            "count": 123,
+                                            "next": "http://api.example.org/accounts/?offset=400&limit=100",
+                                            "previous": "http://api.example.org/accounts/?offset=200&limit=100",
+                                            "results": [
+                                                {
+                                                    "id": 12345,
+                                                    "bundle": "FIRST_ALERT",
+                                                    "sent_at": "2024-01-15T08:00:00Z",
+                                                    "subscription_id": 67890,
+                                                    "product_id": 98765,
+                                                    "variant_id": 11111,
+                                                    "sku": "SKU-12345",
+                                                    "email": "customer@example.com",
+                                                    "phone_number": "+15551234567",
+                                                    "whatsapp_number": "+15559876543",
+                                                    "email_stat": {
+                                                        "status": "DELIVERED"
+                                                    },
+                                                    "sms_stat": {
+                                                        "status": "DELIVERED",
+                                                        "segments_count": 2
+                                                    },
+                                                    "push_stat": null,
+                                                    "whatsapp_stat": null,
+                                                    "is_redacted": false
+                                                }
+                                            ]
+                                        },
+                                        "summary": "Sent Notification Response"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "description": "Authentication failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "description": "Error message"
+                                        }
+                                    }
+                                },
+                                "examples": {
+                                    "missing_api_key": {
+                                        "summary": "Missing API key",
+                                        "value": {
+                                            "detail": "API key required. Provide via X-Api-Key header."
+                                        }
+                                    },
+                                    "invalid_api_key": {
+                                        "summary": "Invalid API key",
+                                        "value": {
+                                            "detail": "Invalid or expired API key."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "You do not have permission to perform this action."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "Request was throttled. Expected available in 60 seconds."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Subscription Sent Notifications List",
+                "description": "Retrieve a paginated list of subscription sent notifications for your shop.",
+                "x-codeSamples": [
+                    {
+                        "lang": "curl",
+                        "label": "cURL",
+                        "source": "curl -X GET \"https://api.notify-me.app/v1/subscription-notifications/\" \\\n  -H \"X-Api-Key: YOUR_API_KEY\""
+                    },
+                    {
+                        "lang": "python",
+                        "label": "Python",
+                        "source": "import requests\n\nresponse = requests.get(\n    \"https://api.notify-me.app/v1/subscription-notifications/\",\n    headers={\"X-Api-Key\": \"YOUR_API_KEY\"}\n)\nprint(response.json())"
+                    },
+                    {
+                        "lang": "javascript",
+                        "label": "JavaScript",
+                        "source": "fetch(\"https://api.notify-me.app/v1/subscription-notifications/\", {\n    method: \"GET\",\n    headers: {\n        \"X-Api-Key\": \"YOUR_API_KEY\"\n    }\n})\n.then(response => response.json())\n.then(data => console.log(data));"
+                    },
+                    {
+                        "lang": "php",
+                        "label": "PHP",
+                        "source": "<?php\n$ch = curl_init(\"https://api.notify-me.app/v1/subscription-notifications/\");\n\ncurl_setopt_array($ch, [\n    CURLOPT_RETURNTRANSFER => true,\n    CURLOPT_CUSTOMREQUEST => \"GET\",\n    CURLOPT_HTTPHEADER => [\n        \"X-Api-Key: YOUR_API_KEY\"\n    ]\n]);\n\n$response = curl_exec($ch);\ncurl_close($ch);\n\nprint_r(json_decode($response, true));"
+                    },
+                    {
+                        "lang": "ruby",
+                        "label": "Ruby",
+                        "source": "require \"net/http\"\nrequire \"json\"\n\nuri = URI(\"https://api.notify-me.app/v1/subscription-notifications/\")\nhttp = Net::HTTP.new(uri.host, uri.port)\nhttp.use_ssl = uri.scheme == \"https\"\n\nrequest = Net::HTTP::Get.new(uri)\nrequest[\"X-Api-Key\"] = \"YOUR_API_KEY\"\n\nresponse = http.request(request)\nputs JSON.parse(response.body)"
+                    },
+                    {
+                        "lang": "go",
+                        "label": "Go",
+                        "source": "package main\n\nimport (\n    \"encoding/json\"\n    \"fmt\"\n    \"net/http\"\n)\n\nfunc main() {\n    req, _ := http.NewRequest(\"GET\", \"https://api.notify-me.app/v1/subscription-notifications/\", nil)\n    req.Header.Set(\"X-Api-Key\", \"YOUR_API_KEY\")\n\n    client := &http.Client{}\n    resp, _ := client.Do(req)\n    defer resp.Body.Close()\n\n    var result map[string]interface{}\n    json.NewDecoder(resp.Body).Decode(&result)\n    fmt.Println(result)\n}"
+                    },
+                    {
+                        "lang": "node",
+                        "label": "Node.js",
+                        "source": "const axios = require(\"axios\");\n\naxios({\n    method: \"get\",\n    url: \"https://api.notify-me.app/v1/subscription-notifications/\",\n    headers: {\n        \"X-Api-Key\": \"YOUR_API_KEY\"\n    }\n})\n.then(response => console.log(response.data))\n.catch(error => console.error(error));"
+                    }
+                ]
+            }
+        },
+        "/v1/subscription-notifications/{id}/": {
+            "get": {
+                "operationId": "subscription_notifications_retrieve",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this subscription sent notification.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Subscription Notifications"
+                ],
+                "security": [
+                    {
+                        "apiKeyAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SubscriptionSentNotification"
+                                },
+                                "examples": {
+                                    "SentNotificationResponse": {
+                                        "value": {
+                                            "id": 12345,
+                                            "bundle": "FIRST_ALERT",
+                                            "sent_at": "2024-01-15T08:00:00Z",
+                                            "subscription_id": 67890,
+                                            "product_id": 98765,
+                                            "variant_id": 11111,
+                                            "sku": "SKU-12345",
+                                            "email": "customer@example.com",
+                                            "phone_number": "+15551234567",
+                                            "whatsapp_number": "+15559876543",
+                                            "email_stat": {
+                                                "status": "DELIVERED"
+                                            },
+                                            "sms_stat": {
+                                                "status": "DELIVERED",
+                                                "segments_count": 2
+                                            },
+                                            "push_stat": null,
+                                            "whatsapp_stat": null,
+                                            "is_redacted": false
+                                        },
+                                        "summary": "Sent Notification Response"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "description": "Authentication failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "description": "Error message"
+                                        }
+                                    }
+                                },
+                                "examples": {
+                                    "missing_api_key": {
+                                        "summary": "Missing API key",
+                                        "value": {
+                                            "detail": "API key required. Provide via X-Api-Key header."
+                                        }
+                                    },
+                                    "invalid_api_key": {
+                                        "summary": "Invalid API key",
+                                        "value": {
+                                            "detail": "Invalid or expired API key."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "You do not have permission to perform this action."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "Request was throttled. Expected available in 60 seconds."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Object not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "Not found."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Get Subscription Sent Notification",
+                "description": "Retrieve details of a specific subscription sent notification by ID.",
+                "x-codeSamples": [
+                    {
+                        "lang": "curl",
+                        "label": "cURL",
+                        "source": "curl -X GET \"https://api.notify-me.app/v1/subscription-notifications/{id}/\" \\\n  -H \"X-Api-Key: YOUR_API_KEY\""
+                    },
+                    {
+                        "lang": "python",
+                        "label": "Python",
+                        "source": "import requests\n\nresponse = requests.get(\n    \"https://api.notify-me.app/v1/subscription-notifications/{id}/\",\n    headers={\"X-Api-Key\": \"YOUR_API_KEY\"}\n)\nprint(response.json())"
+                    },
+                    {
+                        "lang": "javascript",
+                        "label": "JavaScript",
+                        "source": "fetch(\"https://api.notify-me.app/v1/subscription-notifications/{id}/\", {\n    method: \"GET\",\n    headers: {\n        \"X-Api-Key\": \"YOUR_API_KEY\"\n    }\n})\n.then(response => response.json())\n.then(data => console.log(data));"
+                    },
+                    {
+                        "lang": "php",
+                        "label": "PHP",
+                        "source": "<?php\n$ch = curl_init(\"https://api.notify-me.app/v1/subscription-notifications/{id}/\");\n\ncurl_setopt_array($ch, [\n    CURLOPT_RETURNTRANSFER => true,\n    CURLOPT_CUSTOMREQUEST => \"GET\",\n    CURLOPT_HTTPHEADER => [\n        \"X-Api-Key: YOUR_API_KEY\"\n    ]\n]);\n\n$response = curl_exec($ch);\ncurl_close($ch);\n\nprint_r(json_decode($response, true));"
+                    },
+                    {
+                        "lang": "ruby",
+                        "label": "Ruby",
+                        "source": "require \"net/http\"\nrequire \"json\"\n\nuri = URI(\"https://api.notify-me.app/v1/subscription-notifications/{id}/\")\nhttp = Net::HTTP.new(uri.host, uri.port)\nhttp.use_ssl = uri.scheme == \"https\"\n\nrequest = Net::HTTP::Get.new(uri)\nrequest[\"X-Api-Key\"] = \"YOUR_API_KEY\"\n\nresponse = http.request(request)\nputs JSON.parse(response.body)"
+                    },
+                    {
+                        "lang": "go",
+                        "label": "Go",
+                        "source": "package main\n\nimport (\n    \"encoding/json\"\n    \"fmt\"\n    \"net/http\"\n)\n\nfunc main() {\n    req, _ := http.NewRequest(\"GET\", \"https://api.notify-me.app/v1/subscription-notifications/{id}/\", nil)\n    req.Header.Set(\"X-Api-Key\", \"YOUR_API_KEY\")\n\n    client := &http.Client{}\n    resp, _ := client.Do(req)\n    defer resp.Body.Close()\n\n    var result map[string]interface{}\n    json.NewDecoder(resp.Body).Decode(&result)\n    fmt.Println(result)\n}"
+                    },
+                    {
+                        "lang": "node",
+                        "label": "Node.js",
+                        "source": "const axios = require(\"axios\");\n\naxios({\n    method: \"get\",\n    url: \"https://api.notify-me.app/v1/subscription-notifications/{id}/\",\n    headers: {\n        \"X-Api-Key\": \"YOUR_API_KEY\"\n    }\n})\n.then(response => console.log(response.data))\n.catch(error => console.error(error));"
+                    }
+                ]
+            }
+        },
+        "/v1/subscriptions/": {
+            "get": {
+                "operationId": "subscriptions_list",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "created_at_gte",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "description": "Created after this date (ISO 8601)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "created_at_lte",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "description": "Created before this date (ISO 8601)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "email",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by email (case-insensitive)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "is_imported",
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "description": "Filter by import status"
+                    },
+                    {
+                        "in": "query",
+                        "name": "phone_number",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by phone number (case-insensitive)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "product_id",
+                        "schema": {
+                            "type": "number"
+                        },
+                        "description": "Filter by product ID"
+                    },
+                    {
+                        "in": "query",
+                        "name": "sent_at_gte",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "description": "First Alert Notification sent after this date (ISO 8601)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "sent_at_isnull",
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "description": "Filter by First Alert Notification status (true=pending, false=sent)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "sent_at_lte",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "description": "First Alert Notification sent before this date (ISO 8601)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "sku",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by SKU (case-insensitive)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "description": "Filter by status (comma-separated for multiple values)",
+                        "explode": false,
+                        "style": "form"
+                    },
+                    {
+                        "in": "query",
+                        "name": "subscribe_at_gte",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "description": "Subscribed after this date (ISO 8601)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "subscribe_at_lte",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "description": "Subscribed before this date (ISO 8601)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "variant_id",
+                        "schema": {
+                            "type": "number"
+                        },
+                        "description": "Filter by variant ID"
+                    },
+                    {
+                        "in": "query",
+                        "name": "whatsapp_number",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by WhatsApp number (case-insensitive)"
+                    },
+                    {
+                        "in": "query",
+                        "name": "ordering",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "-created_at",
+                                    "-id",
+                                    "-sent_at",
+                                    "-subscribe_at",
+                                    "created_at",
+                                    "id",
+                                    "sent_at",
+                                    "subscribe_at"
+                                ]
+                            }
+                        },
+                        "description": "Order by field. Prefix with '-' for descending\n\n* `subscribe_at` - Subscribe at\n* `-subscribe_at` - Subscribe at (descending)\n* `sent_at` - Sent at\n* `-sent_at` - Sent at (descending)\n* `created_at` - Created at\n* `-created_at` - Created at (descending)\n* `id` - Id\n* `-id` - Id (descending)",
+                        "explode": false,
+                        "style": "form"
+                    },
+                    {
+                        "name": "limit",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return. Default: 15, Max: 100",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "required": false,
+                        "in": "query",
+                        "description": "Starting position of the result set.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 0,
+                            "minimum": 0
+                        }
+                    }
+                ],
+                "tags": [
+                    "Subscriptions"
+                ],
+                "security": [
+                    {
+                        "apiKeyAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedSubscriptionList"
+                                },
+                                "examples": {
+                                    "SubscriptionResponse": {
+                                        "value": {
+                                            "count": 123,
+                                            "next": "http://api.example.org/accounts/?offset=400&limit=100",
+                                            "previous": "http://api.example.org/accounts/?offset=200&limit=100",
+                                            "results": [
+                                                {
+                                                    "id": 12345,
+                                                    "status": "PENDING",
+                                                    "subscribe_at": "2024-01-15",
+                                                    "sent_at": "2024-01-16T10:30:00Z",
+                                                    "created_at": "2024-01-15T08:00:00Z",
+                                                    "product_id": 98765,
+                                                    "variant_id": 11111,
+                                                    "sku": "SKU-001",
+                                                    "email": "customer@example.com",
+                                                    "phone_number": "+15551234567",
+                                                    "whatsapp_number": "+15559876543",
+                                                    "locale": "en",
+                                                    "is_imported": false,
+                                                    "is_redacted": false
+                                                }
+                                            ]
+                                        },
+                                        "summary": "Subscription Response"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "description": "Authentication failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "description": "Error message"
+                                        }
+                                    }
+                                },
+                                "examples": {
+                                    "missing_api_key": {
+                                        "summary": "Missing API key",
+                                        "value": {
+                                            "detail": "API key required. Provide via X-Api-Key header."
+                                        }
+                                    },
+                                    "invalid_api_key": {
+                                        "summary": "Invalid API key",
+                                        "value": {
+                                            "detail": "Invalid or expired API key."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "You do not have permission to perform this action."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "Request was throttled. Expected available in 60 seconds."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Subscriptions List",
+                "description": "Retrieve a paginated list of subscriptions for your shop.",
+                "x-codeSamples": [
+                    {
+                        "lang": "curl",
+                        "label": "cURL",
+                        "source": "curl -X GET \"https://api.notify-me.app/v1/subscriptions/\" \\\n  -H \"X-Api-Key: YOUR_API_KEY\""
+                    },
+                    {
+                        "lang": "python",
+                        "label": "Python",
+                        "source": "import requests\n\nresponse = requests.get(\n    \"https://api.notify-me.app/v1/subscriptions/\",\n    headers={\"X-Api-Key\": \"YOUR_API_KEY\"}\n)\nprint(response.json())"
+                    },
+                    {
+                        "lang": "javascript",
+                        "label": "JavaScript",
+                        "source": "fetch(\"https://api.notify-me.app/v1/subscriptions/\", {\n    method: \"GET\",\n    headers: {\n        \"X-Api-Key\": \"YOUR_API_KEY\"\n    }\n})\n.then(response => response.json())\n.then(data => console.log(data));"
+                    },
+                    {
+                        "lang": "php",
+                        "label": "PHP",
+                        "source": "<?php\n$ch = curl_init(\"https://api.notify-me.app/v1/subscriptions/\");\n\ncurl_setopt_array($ch, [\n    CURLOPT_RETURNTRANSFER => true,\n    CURLOPT_CUSTOMREQUEST => \"GET\",\n    CURLOPT_HTTPHEADER => [\n        \"X-Api-Key: YOUR_API_KEY\"\n    ]\n]);\n\n$response = curl_exec($ch);\ncurl_close($ch);\n\nprint_r(json_decode($response, true));"
+                    },
+                    {
+                        "lang": "ruby",
+                        "label": "Ruby",
+                        "source": "require \"net/http\"\nrequire \"json\"\n\nuri = URI(\"https://api.notify-me.app/v1/subscriptions/\")\nhttp = Net::HTTP.new(uri.host, uri.port)\nhttp.use_ssl = uri.scheme == \"https\"\n\nrequest = Net::HTTP::Get.new(uri)\nrequest[\"X-Api-Key\"] = \"YOUR_API_KEY\"\n\nresponse = http.request(request)\nputs JSON.parse(response.body)"
+                    },
+                    {
+                        "lang": "go",
+                        "label": "Go",
+                        "source": "package main\n\nimport (\n    \"encoding/json\"\n    \"fmt\"\n    \"net/http\"\n)\n\nfunc main() {\n    req, _ := http.NewRequest(\"GET\", \"https://api.notify-me.app/v1/subscriptions/\", nil)\n    req.Header.Set(\"X-Api-Key\", \"YOUR_API_KEY\")\n\n    client := &http.Client{}\n    resp, _ := client.Do(req)\n    defer resp.Body.Close()\n\n    var result map[string]interface{}\n    json.NewDecoder(resp.Body).Decode(&result)\n    fmt.Println(result)\n}"
+                    },
+                    {
+                        "lang": "node",
+                        "label": "Node.js",
+                        "source": "const axios = require(\"axios\");\n\naxios({\n    method: \"get\",\n    url: \"https://api.notify-me.app/v1/subscriptions/\",\n    headers: {\n        \"X-Api-Key\": \"YOUR_API_KEY\"\n    }\n})\n.then(response => console.log(response.data))\n.catch(error => console.error(error));"
+                    }
+                ]
+            }
+        },
+        "/v1/subscriptions/{id}/": {
+            "get": {
+                "operationId": "subscriptions_retrieve",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this subscription.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Subscriptions"
+                ],
+                "security": [
+                    {
+                        "apiKeyAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Subscription"
+                                },
+                                "examples": {
+                                    "SubscriptionResponse": {
+                                        "value": {
+                                            "id": 12345,
+                                            "status": "PENDING",
+                                            "subscribe_at": "2024-01-15",
+                                            "sent_at": "2024-01-16T10:30:00Z",
+                                            "created_at": "2024-01-15T08:00:00Z",
+                                            "product_id": 98765,
+                                            "variant_id": 11111,
+                                            "sku": "SKU-001",
+                                            "email": "customer@example.com",
+                                            "phone_number": "+15551234567",
+                                            "whatsapp_number": "+15559876543",
+                                            "locale": "en",
+                                            "is_imported": false,
+                                            "is_redacted": false
+                                        },
+                                        "summary": "Subscription Response"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "description": "Authentication failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "description": "Error message"
+                                        }
+                                    }
+                                },
+                                "examples": {
+                                    "missing_api_key": {
+                                        "summary": "Missing API key",
+                                        "value": {
+                                            "detail": "API key required. Provide via X-Api-Key header."
+                                        }
+                                    },
+                                    "invalid_api_key": {
+                                        "summary": "Invalid API key",
+                                        "value": {
+                                            "detail": "Invalid or expired API key."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "You do not have permission to perform this action."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "Request was throttled. Expected available in 60 seconds."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Object not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "detail": {
+                                            "type": "string",
+                                            "example": "Not found."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Get Subscription",
+                "description": "Retrieve details of a specific subscription by ID.",
+                "x-codeSamples": [
+                    {
+                        "lang": "curl",
+                        "label": "cURL",
+                        "source": "curl -X GET \"https://api.notify-me.app/v1/subscriptions/{id}/\" \\\n  -H \"X-Api-Key: YOUR_API_KEY\""
+                    },
+                    {
+                        "lang": "python",
+                        "label": "Python",
+                        "source": "import requests\n\nresponse = requests.get(\n    \"https://api.notify-me.app/v1/subscriptions/{id}/\",\n    headers={\"X-Api-Key\": \"YOUR_API_KEY\"}\n)\nprint(response.json())"
+                    },
+                    {
+                        "lang": "javascript",
+                        "label": "JavaScript",
+                        "source": "fetch(\"https://api.notify-me.app/v1/subscriptions/{id}/\", {\n    method: \"GET\",\n    headers: {\n        \"X-Api-Key\": \"YOUR_API_KEY\"\n    }\n})\n.then(response => response.json())\n.then(data => console.log(data));"
+                    },
+                    {
+                        "lang": "php",
+                        "label": "PHP",
+                        "source": "<?php\n$ch = curl_init(\"https://api.notify-me.app/v1/subscriptions/{id}/\");\n\ncurl_setopt_array($ch, [\n    CURLOPT_RETURNTRANSFER => true,\n    CURLOPT_CUSTOMREQUEST => \"GET\",\n    CURLOPT_HTTPHEADER => [\n        \"X-Api-Key: YOUR_API_KEY\"\n    ]\n]);\n\n$response = curl_exec($ch);\ncurl_close($ch);\n\nprint_r(json_decode($response, true));"
+                    },
+                    {
+                        "lang": "ruby",
+                        "label": "Ruby",
+                        "source": "require \"net/http\"\nrequire \"json\"\n\nuri = URI(\"https://api.notify-me.app/v1/subscriptions/{id}/\")\nhttp = Net::HTTP.new(uri.host, uri.port)\nhttp.use_ssl = uri.scheme == \"https\"\n\nrequest = Net::HTTP::Get.new(uri)\nrequest[\"X-Api-Key\"] = \"YOUR_API_KEY\"\n\nresponse = http.request(request)\nputs JSON.parse(response.body)"
+                    },
+                    {
+                        "lang": "go",
+                        "label": "Go",
+                        "source": "package main\n\nimport (\n    \"encoding/json\"\n    \"fmt\"\n    \"net/http\"\n)\n\nfunc main() {\n    req, _ := http.NewRequest(\"GET\", \"https://api.notify-me.app/v1/subscriptions/{id}/\", nil)\n    req.Header.Set(\"X-Api-Key\", \"YOUR_API_KEY\")\n\n    client := &http.Client{}\n    resp, _ := client.Do(req)\n    defer resp.Body.Close()\n\n    var result map[string]interface{}\n    json.NewDecoder(resp.Body).Decode(&result)\n    fmt.Println(result)\n}"
+                    },
+                    {
+                        "lang": "node",
+                        "label": "Node.js",
+                        "source": "const axios = require(\"axios\");\n\naxios({\n    method: \"get\",\n    url: \"https://api.notify-me.app/v1/subscriptions/{id}/\",\n    headers: {\n        \"X-Api-Key\": \"YOUR_API_KEY\"\n    }\n})\n.then(response => console.log(response.data))\n.catch(error => console.error(error));"
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "BaseStat": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Delivery status of the message"
+                    }
+                }
+            },
+            "PaginatedPreOrderSentNotificationList": {
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=400&limit=100"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=200&limit=100"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PreOrderSentNotification"
+                        }
+                    }
+                }
+            },
+            "PaginatedShopPreOrderList": {
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=400&limit=100"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=200&limit=100"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ShopPreOrder"
+                        }
+                    }
+                }
+            },
+            "PaginatedSubscriptionList": {
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=400&limit=100"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=200&limit=100"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Subscription"
+                        }
+                    }
+                }
+            },
+            "PaginatedSubscriptionSentNotificationList": {
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=400&limit=100"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?offset=200&limit=100"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SubscriptionSentNotification"
+                        }
+                    }
+                }
+            },
+            "PreOrderSentNotification": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "description": "Unique identifier for the sent notification"
+                    },
+                    "bundle": {
+                        "enum": [
+                            "PRE_ORDER",
+                            "DELAYED_SHIPMENT"
+                        ],
+                        "type": "string",
+                        "x-spec-enum-id": "f11c38ba5c61d03b",
+                        "readOnly": true,
+                        "description": "Notification type (PRE_ORDER, DELAYED_SHIPMENT)\n\n* `PRE_ORDER` - PRE_ORDER\n* `DELAYED_SHIPMENT` - DELAYED_SHIPMENT"
+                    },
+                    "sent_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "description": "When the notification was sent"
+                    },
+                    "pre_order_ids": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "List of pre-order IDs this notification was sent for"
+                    },
+                    "email": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true,
+                        "description": "Customer email address (null once the customer is redacted)"
+                    },
+                    "phone_number": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true,
+                        "description": "Customer phone number (null once the customer is redacted)"
+                    },
+                    "email_stat": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/BaseStat"
+                            }
+                        ],
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Email delivery status"
+                    },
+                    "sms_stat": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SmsStat"
+                            }
+                        ],
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "SMS delivery status"
+                    },
+                    "is_redacted": {
+                        "type": "boolean",
+                        "readOnly": true,
+                        "description": "Whether the customer's personal data was erased on their request"
+                    }
+                }
+            },
+            "ShopPreOrder": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "description": "Unique identifier for the pre-order"
+                    },
+                    "shopify_order_id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "description": "Shopify order ID"
+                    },
+                    "email": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true,
+                        "description": "Customer email address (null once the customer is redacted)"
+                    },
+                    "phone_number": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true,
+                        "description": "Customer phone number (null once the customer is redacted)"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "description": "When the pre-order was placed"
+                    },
+                    "total_price": {
+                        "type": "number",
+                        "format": "double",
+                        "readOnly": true,
+                        "description": "Total basket price"
+                    },
+                    "product_price": {
+                        "type": "number",
+                        "format": "double",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Product unit price"
+                    },
+                    "product_ordered_quantity": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Quantity ordered"
+                    },
+                    "financial_status": {
+                        "enum": [
+                            "AUTHORIZED",
+                            "PAID",
+                            "PARTIALLY_PAID",
+                            "PARTIALLY_REFUNDED",
+                            "PENDING",
+                            "REFUNDED",
+                            "VOIDED",
+                            null
+                        ],
+                        "type": "string",
+                        "x-spec-enum-id": "3fe11e81f971c63c",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Payment status (PAID, PENDING, etc.)\n\n* `AUTHORIZED` - AUTHORIZED\n* `PAID` - PAID\n* `PARTIALLY_PAID` - PARTIALLY_PAID\n* `PARTIALLY_REFUNDED` - PARTIALLY_REFUNDED\n* `PENDING` - PENDING\n* `REFUNDED` - REFUNDED\n* `VOIDED` - VOIDED"
+                    },
+                    "fulfillment_status": {
+                        "enum": [
+                            "FULFILLED",
+                            "IN_PROGRESS",
+                            "ON_HOLD",
+                            "OPEN",
+                            "RESTOCKED",
+                            "PARTIALLY_FULFILLED",
+                            "PENDING_FULFILLMENT",
+                            "SCHEDULED",
+                            "UNFULFILLED",
+                            null
+                        ],
+                        "type": "string",
+                        "x-spec-enum-id": "d284cc4da6f9ae6f",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Fulfillment status\n\n* `FULFILLED` - FULFILLED\n* `IN_PROGRESS` - IN_PROGRESS\n* `ON_HOLD` - ON_HOLD\n* `OPEN` - OPEN\n* `RESTOCKED` - RESTOCKED\n* `PARTIALLY_FULFILLED` - PARTIALLY_FULFILLED\n* `PENDING_FULFILLMENT` - PENDING_FULFILLMENT\n* `SCHEDULED` - SCHEDULED\n* `UNFULFILLED` - UNFULFILLED"
+                    },
+                    "locale": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Customer locale"
+                    },
+                    "cancelled_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Cancellation timestamp (null if not cancelled)"
+                    },
+                    "cancellation_reason": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Reason for cancellation"
+                    },
+                    "product_id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "description": "Shopify product ID"
+                    },
+                    "variant_id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Shopify variant ID"
+                    },
+                    "sku": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "SKU of the variant"
+                    },
+                    "selling_plan_settings_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Pre-order selling plan settings name"
+                    },
+                    "is_redacted": {
+                        "type": "boolean",
+                        "readOnly": true,
+                        "description": "Whether the customer's personal data was erased on their request"
+                    }
+                }
+            },
+            "SmsStat": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Delivery status of the message"
+                    },
+                    "segments_count": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Number of SMS segments used"
+                    }
+                }
+            },
+            "Subscription": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "description": "Unique identifier for the subscription"
+                    },
+                    "status": {
+                        "enum": [
+                            "EXPIRED",
+                            "RESTOCKED",
+                            "WAITING_UPGRADE",
+                            "WAITING_RESTOCK",
+                            "PENDING_GDPR",
+                            "SCHEDULED",
+                            "FRAUD_DETECTED_BY_AI",
+                            "ORDERED",
+                            null
+                        ],
+                        "type": "string",
+                        "x-spec-enum-id": "4f2b45d471a0582d",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Current status of the subscription\n\n* `EXPIRED` - EXPIRED\n* `RESTOCKED` - RESTOCKED\n* `WAITING_UPGRADE` - WAITING_UPGRADE\n* `WAITING_RESTOCK` - WAITING_RESTOCK\n* `PENDING_GDPR` - PENDING_GDPR\n* `SCHEDULED` - SCHEDULED\n* `FRAUD_DETECTED_BY_AI` - FRAUD_DETECTED_BY_AI\n* `ORDERED` - ORDERED"
+                    },
+                    "subscribe_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Timestamp when the customer subscribed"
+                    },
+                    "sent_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Timestamp when notification was sent (null if pending)"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "title": "Creation Time",
+                        "description": "Record creation timestamp"
+                    },
+                    "product_id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "description": "ID of the product the customer subscribed to"
+                    },
+                    "variant_id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "ID of the variant (null if product-level subscription)"
+                    },
+                    "sku": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "SKU of the variant (null if product-level subscription)"
+                    },
+                    "email": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true,
+                        "description": "Customer's email address (null once the customer is redacted)"
+                    },
+                    "phone_number": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true,
+                        "description": "Customer's phone number for SMS (null once the customer is redacted)"
+                    },
+                    "whatsapp_number": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true,
+                        "description": "Customer's WhatsApp number (null once the customer is redacted)"
+                    },
+                    "locale": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "ISO 639-1 language code (e.g., 'en', 'fr')"
+                    },
+                    "is_imported": {
+                        "type": "boolean",
+                        "readOnly": true,
+                        "description": "Whether imported from external source"
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "description": "Requested quantity the subscriber wants in stock before being notified"
+                    },
+                    "is_redacted": {
+                        "type": "boolean",
+                        "readOnly": true,
+                        "description": "Whether the customer's personal data was erased on their request"
+                    }
+                }
+            },
+            "SubscriptionSentNotification": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "description": "Unique identifier for the sent notification"
+                    },
+                    "bundle": {
+                        "enum": [
+                            "FIRST_ALERT",
+                            "GDPR",
+                            "AFTER_SUBSCRIPTION",
+                            "REMINDER"
+                        ],
+                        "type": "string",
+                        "x-spec-enum-id": "ce56bc923ec0b8de",
+                        "readOnly": true,
+                        "description": "Notification type (FIRST_ALERT, GDPR, AFTER_SUBSCRIPTION, REMINDER)\n\n* `FIRST_ALERT` - FIRST_ALERT\n* `GDPR` - GDPR\n* `AFTER_SUBSCRIPTION` - AFTER_SUBSCRIPTION\n* `REMINDER` - REMINDER"
+                    },
+                    "sent_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "description": "When the notification was sent"
+                    },
+                    "subscription_id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "description": "ID of the related subscription"
+                    },
+                    "product_id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "description": "Shopify product ID"
+                    },
+                    "variant_id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Shopify variant ID"
+                    },
+                    "sku": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "SKU of the variant"
+                    },
+                    "email": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true,
+                        "description": "Customer email address (null once the customer is redacted)"
+                    },
+                    "phone_number": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true,
+                        "description": "Customer phone number (null once the customer is redacted)"
+                    },
+                    "whatsapp_number": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true,
+                        "description": "Customer WhatsApp number (null once the customer is redacted)"
+                    },
+                    "email_stat": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/BaseStat"
+                            }
+                        ],
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Email delivery status"
+                    },
+                    "sms_stat": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SmsStat"
+                            }
+                        ],
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "SMS delivery status"
+                    },
+                    "push_stat": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/BaseStat"
+                            }
+                        ],
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Push notification delivery status"
+                    },
+                    "whatsapp_stat": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/BaseStat"
+                            }
+                        ],
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "WhatsApp delivery status"
+                    },
+                    "is_redacted": {
+                        "type": "boolean",
+                        "readOnly": true,
+                        "description": "Whether the customer's personal data was erased on their request"
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "apiKeyAuth": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-Api-Key",
+                "description": "API Key authentication"
+            }
+        }
+    }
+}
