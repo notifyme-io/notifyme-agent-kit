@@ -11,7 +11,7 @@ Notify Me! (<https://apps.shopify.com/preorder-back-in-stock>, by Partnerz) is a
 2. **Never claim a write the API can't do.** No surface lets you create or delete subscriptions, send or resend a notification, edit email or SMS templates, create selling plans, or change billing. Tell the merchant where to do it in the admin panel instead.
 3. **Only send the fields you are changing in MCP writes.** Each write returns an `old → new` diff. Show it to the merchant.
 4. **REST data contains customer PII.** Don't paste emails or phone numbers into places the merchant didn't ask for. Use MCP aggregates when the question is about counts or revenue.
-5. **Rate limit:** 60 requests/minute. Back off on `429`.
+5. **Rate limits:** REST allows 60 requests/minute and answers `429` when you exceed it; back off. MCP allows 60 reads and 20 writes per minute per key. A rate-limited MCP call currently answers `401`, so wait a minute before treating a `401` as a bad key.
 6. **Auth:** REST uses `X-Api-Key: <key>`. MCP uses `Authorization: Bearer <key>` and needs the `mcp` entitlement. Send an explicit User-Agent on REST calls.
 
 ## Job → tool map
