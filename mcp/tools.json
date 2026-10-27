@@ -1,5 +1,5 @@
 {
-  "_comment": "Static manifest of the Notify Me! MCP server tools, copied from the published API docs (info.description of https://api.notify-me.app/v1/schema/). The live tools/list requires an entitled key, so registries and crawlers cannot see it; this file is what they can index. Keep in sync with the server.",
+  "_comment": "Static manifest of the Notify Me! MCP server tools, copied from the published API docs (info.description of https://api.notify-me.app/v1/schema/). The live tools/list requires an API key, so registries and crawlers cannot see it; this file is what they can index. Keep in sync with the server.",
   "server": "https://mcp.notify-me.app/mcp",
   "transport": "streamable-http",
   "auth": "Authorization: Bearer <Notify Me! API key with the mcp entitlement>",
