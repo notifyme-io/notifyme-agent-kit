@@ -46,5 +46,7 @@
     "check-spec": "node scripts/check-spec.js",
     "smoke": "node bin/notifyme.js --help && node bin/notifyme.js endpoints --raw"
   },
-  "private": true
+  "publishConfig": {
+    "access": "public"
+  }
 }
